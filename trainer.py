@@ -89,7 +89,7 @@ def train(Model, args_dict):
         g_image = Model.generate(r_sampler.sample())
         
         Model.OptD.zero_grad()
-        Model_OptQ.zeros_grad()
+        Model.OptQ.zero_grad()
         pred_f = Model.discriminate(g_image.detach())
         pred_r, rec_z = Model(real_image)
         d_loss = (loss_bce(torch.sigmoid(pred_r), torch.ones(pred_r.size()).to(args_dict['device'])) + 
@@ -98,18 +98,18 @@ def train(Model, args_dict):
         #d_loss.backward()
         total_loss = d_loss + q_loss
         total_loss.backward()
-        ModeloptD.step()
+        Model.optD.step()
 
         D_real += torch.sigmoid(pred_r).mean().item()
         D_fake += torch.sigmoid(pred_f).mean().item()
         D_z_kl += q_loss.item()
         
-        OptD.zero_grad()
-        OptG.zero_grad()
+        Model.OptD.zero_grad()
+        Model.OptG.zero_grad()
 
         pred_g, z_posterior = Model(g_image)
         
-        g_loss = LAMBDA_G * loss_bce(torch.sigmoid(pred_g), torch.ones(pred_g.size()).to(args_dict['device']))
+        g_loss = args_dict['LAMBDA_G']* loss_bce(torch.sigmoid(pred_g), torch.ones(pred_g.size()).to(args_dict['device']))
         # reconstruction loss of z
         ## TODO
         ## question here: as stated in the paper-algorithm-1: this part should be a - log(q(z|x)) instead of mse
@@ -119,15 +119,15 @@ def train(Model, args_dict):
         kl_loss = args_dict['BETA_KL']*kl_divergence(r_sampler, M_r).mean()
         total_loss = g_loss + recon_loss + kl_loss
         total_loss.backward()
-        OptE.step()
-        OptG.step()
+        Model.OptE.step()
+        Model.OptG.step()
 
         # record the loss values
         G_real += torch.sigmoid(pred_g).mean().item()
         Z_recon += recon_loss.item()
         R_kl += kl_loss.item()
         
-        if n_iter % LOG_INTERVAL == 0 and n_iter > 0:
+        if n_iter % args_dict['LOG_INTERVAL'] == 0 and n_iter > 0:
             print("D(x): %.5f    D(G(z)): %.5f    D_kl: %.5f    G(z): %.5f    Z_rec: %.5f    R_kl: %.5f"% (D_real/LOG_INTERVAL, D_fake/LOG_INTERVAL, D_z_kl/LOG_INTERVAL, G_real/LOG_INTERVAL, Z_recon/LOG_INTERVAL, R_kl/LOG_INTERVAL))
             D_real = D_fake = D_z_kl = G_real = Z_recon = R_kl = 0
         

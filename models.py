@@ -53,12 +53,12 @@ class IBGAN(nn.Module):
                                      UnFlatten(4),
                                      #nn.Conv2d(ngf*4, ngf*4, 3), nn.BatchNorm2d(ngf*4), nn.ReLU(),
                                      #nn.Conv2d(ngf*4, ngf*4, 3), nn.BatchNorm2d(ngf*4), nn.ReLU(),
-                                     nn.ConvTranspose2d(ngf*4, ngf*2, 4), nn.BatchNorm2d(ngf*2), nn.ReLU(),
-                                     nn.ConvTranspose2d(ngf*2, ngf, 4), nn.BatchNorm2d(ngf), nn.ReLU(),
-                                     nn.ConvTranspose2d(ngf, nc), nn.Tanh())
+                                     nn.ConvTranspose2d(ngf*16, ngf*2, 4, 2, 1), nn.BatchNorm2d(ngf*2), nn.ReLU(),
+                                     nn.ConvTranspose2d(ngf*2, ngf, 4, 2, 1), nn.BatchNorm2d(ngf), nn.ReLU(),
+                                     nn.ConvTranspose2d(ngf, nc, 4, 2, 1), nn.Tanh())
         
         self.SubBlock_QD = nn.Sequential(nn.Conv2d(nc, ndf, 4), nn.ReLU(),
-                                         nn.Conv2d(ndf, ndf*2), nn.BatchNorm2d(ndf*2), nn.ReLU(),
+                                         nn.Conv2d(ndf, ndf*2, 4), nn.BatchNorm2d(ndf*2), nn.ReLU(),
                                          nn.Conv2d(ndf*2, ndf*4, 4), nn.BatchNorm2d(ndf*4), nn.ReLU(),
                                          nn.Conv2d(ndf*4, ndf*16, 8), nn.BatchNorm2d(16*ndf), nn.ReLU(),
                                          )
@@ -69,11 +69,11 @@ class IBGAN(nn.Module):
         
         self.Block_D = spectral_norm(nn.Conv2d(ndf*16, 1, 4))
         
-        self.OptD = optim.RMSprop(chain[self.Block_D.parameters(), self.SubBlock_QD.parameters()], 
+        self.OptD = optim.RMSprop(chain(self.Block_D.parameters(), self.SubBlock_QD.parameters()), 
                                   lr=lr_D, momentum=0.9)
         self.OptG = optim.RMSprop(self.Block_G.parameters(), lr=lr_G, momentum=0.9)
         self.OptE = optim.RMSprop(self.Block_E.parameters(), lr=lr_E, momentum=0.9)
-        self.OptQ = optim.RMSprop(chain[self.Block_Q.parameters(), self.SubBlock_QD.parameters()], 
+        self.OptQ = optim.RMSprop(chain(self.Block_Q.parameters(), self.SubBlock_QD.parameters()), 
                                   lr=lr_Q, momentum=0.9)
         
     def r_sampler(self, x):
@@ -87,6 +87,11 @@ class IBGAN(nn.Module):
         g = self.Block_G(x)
         return g
         
+    def discriminate(self, x):
+        x = self.SubBlock_QD(x)
+        d = self.Block_D(x)
+        return d.view(-1)
+        
     def forward(self, x):
         
         x = self.SubBlock_QD(x)
@@ -94,4 +99,7 @@ class IBGAN(nn.Module):
         D = self.Block_D(x)
         return D.view(-1), Q
     
+
+if __name__=="__main__":
     
+    model = IBGAN(24, 24, 2, 2, 1, 1, 1, 1)
