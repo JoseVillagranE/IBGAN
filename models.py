@@ -49,25 +49,26 @@ class IBGAN(nn.Module):
                                      nn.Linear(ngf, r_dim*2))
         
         self.Block_G = nn.Sequential(nn.Linear(r_dim, ngf*16), nn.BatchNorm1d(ngf*16), nn.ReLU(),
-                                     nn.Linear(ngf*16, 64*4*ngf), nn.BatchNorm1d(64*4*ngf), nn.ReLU(),
+                                     nn.Linear(ngf*16, 16*4*ngf), nn.BatchNorm1d(16*4*ngf), nn.ReLU(),
                                      UnFlatten(4),
                                      #nn.Conv2d(ngf*4, ngf*4, 3), nn.BatchNorm2d(ngf*4), nn.ReLU(),
                                      #nn.Conv2d(ngf*4, ngf*4, 3), nn.BatchNorm2d(ngf*4), nn.ReLU(),
-                                     nn.ConvTranspose2d(ngf*16, ngf*2, 4, 2, 1), nn.BatchNorm2d(ngf*2), nn.ReLU(),
+                                     nn.ConvTranspose2d(ngf*4, ngf*4, 4, 2, 1), nn.BatchNorm2d(ngf*4), nn.ReLU(),
+                                     nn.ConvTranspose2d(ngf*4, ngf*2, 4, 2, 1), nn.BatchNorm2d(ngf*2), nn.ReLU(),
                                      nn.ConvTranspose2d(ngf*2, ngf, 4, 2, 1), nn.BatchNorm2d(ngf), nn.ReLU(),
                                      nn.ConvTranspose2d(ngf, nc, 4, 2, 1), nn.Tanh())
         
-        self.SubBlock_QD = nn.Sequential(nn.Conv2d(nc, ndf, 4), nn.ReLU(),
-                                         nn.Conv2d(ndf, ndf*2, 4), nn.BatchNorm2d(ndf*2), nn.ReLU(),
-                                         nn.Conv2d(ndf*2, ndf*4, 4), nn.BatchNorm2d(ndf*4), nn.ReLU(),
-                                         nn.Conv2d(ndf*4, ndf*16, 8), nn.BatchNorm2d(16*ndf), nn.ReLU(),
+        self.SubBlock_QD = nn.Sequential(nn.Conv2d(nc, ndf, 4, 2, 1), nn.ReLU(),
+                                         nn.Conv2d(ndf, ndf*2, 4, 2, 1), nn.BatchNorm2d(ndf*2), nn.ReLU(),
+                                         nn.Conv2d(ndf*2, ndf*4, 4, 2, 1), nn.BatchNorm2d(ndf*4), nn.ReLU(),
+                                         spectral_norm(nn.Conv2d(ndf*4, ndf*8, 4, 2, 1)), nn.BatchNorm2d(8*ndf), nn.ReLU(),
                                          )
        
         self.Block_Q = nn.Sequential(Flatten(),
-                                     nn.Linear(ndf*64*16, ndf*16), nn.BatchNorm2d(ndf*16), nn.ReLU(),
+                                     nn.Linear(ndf*16*8, ndf*16), nn.BatchNorm1d(ndf*16), nn.ReLU(),
                                      nn.Linear(ndf*16, z_dim))
         
-        self.Block_D = spectral_norm(nn.Conv2d(ndf*16, 1, 4))
+        self.Block_D = spectral_norm(nn.Conv2d(ndf*8, 1, 4, 1, 0))
         
         self.OptD = optim.RMSprop(chain(self.Block_D.parameters(), self.SubBlock_QD.parameters()), 
                                   lr=lr_D, momentum=0.9)

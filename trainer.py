@@ -66,7 +66,7 @@ def KL_Loss(z):
 
 
 def train(Model, args_dict):
-    
+    print("-------- training --------")
     dataset = Dataset.ImageFolder(root=args_dict['DATA_ROOT'], transform=trans_maker(64)) 
     dataloader = iter(DataLoader(dataset, args_dict['BATCH_SIZE'], sampler=InfiniteSamplerWrapper(dataset), num_workers=0, pin_memory=True))
     
@@ -98,7 +98,7 @@ def train(Model, args_dict):
         #d_loss.backward()
         total_loss = d_loss + q_loss
         total_loss.backward()
-        Model.optD.step()
+        Model.OptD.step()
 
         D_real += torch.sigmoid(pred_r).mean().item()
         D_fake += torch.sigmoid(pred_f).mean().item()
@@ -131,4 +131,25 @@ def train(Model, args_dict):
             print("D(x): %.5f    D(G(z)): %.5f    D_kl: %.5f    G(z): %.5f    Z_rec: %.5f    R_kl: %.5f"% (D_real/LOG_INTERVAL, D_fake/LOG_INTERVAL, D_z_kl/LOG_INTERVAL, G_real/LOG_INTERVAL, Z_recon/LOG_INTERVAL, R_kl/LOG_INTERVAL))
             D_real = D_fake = D_z_kl = G_real = Z_recon = R_kl = 0
         
+
+if __name__ == "__main__":
+    BATCH_SIZE = 128
+    Z_DIM = 500
+    R_DIM = 15
+    NDF = 64
+    NGF = 64
+    N_EPOCHS = 100000
+    LOG_INTERVAL = 1
+
+    LAMBDA_G = 1
+    BETA_KL = 0.3
+    DATA_ROOT = "img_align_celeba/"
+    device = "cpu"
+    args_dict = {"BATCH_SIZE": BATCH_SIZE, "Z_DIM": Z_DIM, "R_DIM": R_DIM, "NDF": NDF, "NGF": NGF, "N_EPOCHS": N_EPOCHS, 
+             "LAMBDA_G": LAMBDA_G, "BETA_KL": BETA_KL, "device": device, "DATA_ROOT": DATA_ROOT, "LOG_INTERVAL": LOG_INTERVAL}
         
+    lr = 1e-5
+    IBGAN_model = IBGAN(NGF, NDF, Z_DIM, R_DIM, lr, lr, lr, lr)
+    IBGAN_model = IBGAN_model.to(device)
+    
+    train(IBGAN_model, args_dict)
