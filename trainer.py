@@ -23,6 +23,9 @@ import numpy as np
 from models import IBGAN
 from torchvision import transforms
 import torch.utils.data as data
+import torchvision.utils as vutils
+
+import matplotlib.pyplot as plt
 
 def InfiniteSampler(n):
     # i = 0
@@ -81,6 +84,10 @@ def train(Model, args_dict):
     
     LOG_INTERVAL = args_dict['LOG_INTERVAL']
     
+    z = torch.randn(100, args_dict['R_DIM'], device=args_dict['device'])
+    fixed_noise = z
+    D_loss = []
+    R_loss =[]
     for n_iter in tqdm.tqdm(range(0, args_dict['N_EPOCHS'])):
         
         real_image = next(dataloader)[0].to(args_dict['device'])
@@ -128,10 +135,19 @@ def train(Model, args_dict):
         R_kl += kl_loss.item()
         
         if n_iter % args_dict['LOG_INTERVAL'] == 0 and n_iter > 0:
+            with torch.no_grad():
+                gen_data = Model.generate(fixed_noise).detach().cpu()
+                plt.figure(figsize=(10, 10))
+                plt.axis("off")
+                plt.imshow(np.transpose(vutils.make_grid(gen_data, nrow=10, padding=2, normalize=True), (1,2,0)))
+                plt.show()
+            
             print("D(x): %.5f    D(G(z)): %.5f    D_kl: %.5f    G(z): %.5f    Z_rec: %.5f    R_kl: %.5f"% (D_real/LOG_INTERVAL, D_fake/LOG_INTERVAL, D_z_kl/LOG_INTERVAL, G_real/LOG_INTERVAL, Z_recon/LOG_INTERVAL, R_kl/LOG_INTERVAL))
+            D_loss.append(D_z_kl/LOG_INTERVAL)
+            R_loss.append(R_kl/LOG_INTERVAL)
             D_real = D_fake = D_z_kl = G_real = Z_recon = R_kl = 0
-        
-
+            
+    return D_loss, R_loss
 if __name__ == "__main__":
     BATCH_SIZE = 128
     Z_DIM = 500
